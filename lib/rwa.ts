@@ -4,7 +4,7 @@
 import { cache } from 'react';
 import { config } from '@/datum.config';
 import { hasKey, query } from './datum';
-import { num, pct, usd } from './format';
+import { num, pct, price, usd } from './format';
 import { protocolLogo } from './chains';
 import { sampleAsset, sampleReserve, sampleRwa, sampleRwaMarket } from './sample';
 import type { Asset, AssetDetail, Kind, Point, Position, Reserve, ReserveDetail, Risk, RwaMarket, RwaMarketDetail, RwaOverview, Share } from './rwa-types';
@@ -84,6 +84,8 @@ export const loadRwa = cache(async (): Promise<RwaOverview> => {
   const horizonSupplied = sum(rwaReserves, (r) => r.supplied), morphoCollateral = sum(markets, (m) => m.collateralUsd);
   const deployed = horizonSupplied + morphoCollateral;
   const rwaAum = latest?.aum || sum(assets.filter((a) => a.kind === 'rwa'), (a) => a.aum);
+  // The share deployed is measured on the tracked assets themselves, so numerator and denominator are the same universe.
+  const trackedOnHorizon = sum(assets.filter((a) => a.kind === 'rwa'), (a) => a.horizonSupplied);
   const weekAgo = totals.find((r) => r.day === isoDaysAgo(7, asOfDate));
   const horizonWeekAgo = horizon.find((p) => p.day === isoDaysAgo(7, asOfDate));
   const borrowed = sum(reserves, (r) => r.borrowed) + sum(markets, (m) => m.borrowed);
@@ -105,7 +107,7 @@ export const loadRwa = cache(async (): Promise<RwaOverview> => {
     asOf, sample: false,
     kpis: {
       rwaAum, rwaAumChange7d: change(rwaAum, weekAgo?.aum), rwaAssets: assets.filter((a) => a.kind === 'rwa').length,
-      deployed, deployedPct: rwaAum ? (horizonSupplied / rwaAum) * 100 : 0, horizonSupplied, morphoCollateral,
+      deployed, deployedPct: rwaAum ? (trackedOnHorizon / rwaAum) * 100 : 0, horizonSupplied, morphoCollateral,
       deployedChange7d: change(horizonSupplied, horizonWeekAgo ? num(horizonWeekAgo.rwa) : undefined),
       borrowed, utilization: suppliedAll ? (borrowed / suppliedAll) * 100 : 0, holders: latest?.holders ?? 0, issuers: latest?.issuers ?? iss.size,
     },
@@ -129,8 +131,8 @@ export const loadReserve = cache(async (symbol: string): Promise<ReserveDetail |
 export const reserveFacts = (r: Reserve) => [
   ...(r.kind === 'rwa' ? [{ label: 'Max LTV', value: pct(r.ltv, 0), note: 'How much can be borrowed against this collateral' }, { label: 'Liquidation threshold', value: pct(r.liqThreshold, 0), note: 'Debt to collateral ratio at which the position can be liquidated' }]
     : [{ label: 'Role', value: 'Borrowable stablecoin', note: 'Supplied to be lent out; not accepted as collateral' }]),
-  { label: 'Oracle price', value: usd(r.price, 2), note: 'What the venue values one token at' },
-  ...(r.nav ? [{ label: 'Issuer NAV', value: usd(r.nav, 2), note: r.price && Math.abs(r.price / r.nav - 1) > 0.005 ? 'Differs from the oracle price by more than 0.5%: pricing risk' : 'In line with the oracle price' }] : []),
+  { label: 'Oracle price', value: price(r.price), note: 'What the venue values one token at' },
+  ...(r.nav ? [{ label: 'Issuer NAV', value: price(r.nav), note: r.price && Math.abs(r.price / r.nav - 1) > 0.005 ? 'Differs from the oracle price by more than 0.5%: pricing risk' : 'In line with the oracle price' }] : []),
   { label: 'Issuer', value: r.issuer }, { label: 'Asset class', value: r.assetClass },
   { label: 'Reserve address', value: r.id || 'n/a' },
 ];
@@ -173,7 +175,7 @@ export const assetFacts = (a: Asset, history: Point[], reserve: Reserve | null) 
     { label: 'Issuer', value: a.issuer }, { label: 'Asset class', value: a.assetClass },
     { label: 'AUM source', value: sourceLabel(a.source) },
     { label: 'Change, 30 days', value: chg(30), note: 'Issuance and price together' }, { label: 'Change, 90 days', value: chg(90) },
-    ...(reserve ? [{ label: 'On Aave Horizon', value: usd(reserve.supplied), note: reserve.kind === 'rwa' ? `${pct(a.deployedPct, 1)} of AUM, max LTV ${pct(reserve.ltv, 0)}` : 'Borrowable stablecoin reserve' }] : [{ label: 'On Aave Horizon', value: 'Not listed' }]),
+    ...(reserve ? [{ label: 'On Aave Horizon', value: reserve.supplied ? usd(reserve.supplied) : 'Listed, nothing posted', note: reserve.kind === 'rwa' ? `${pct(a.deployedPct, 1)} of AUM, max LTV ${pct(reserve.ltv, 0)}` : 'Borrowable stablecoin reserve' }] : [{ label: 'On Aave Horizon', value: 'Not listed' }]),
     { label: 'History since', value: history[0]?.day ?? 'n/a' },
   ];
 };

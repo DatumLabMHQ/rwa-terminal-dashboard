@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { config } from '@/datum.config';
 import { loadReserve } from '@/lib/data';
-import { pct, usd } from '@/lib/format';
+import { pct, price, usd } from '@/lib/format';
 import { protocolLogo } from '@/lib/chains';
 import { Badge } from '@/components/ui/badge';
 import { PageBreadcrumb } from '@/components/page-breadcrumb';
@@ -46,7 +46,7 @@ export default async function ReservePage({ params }: { params: Promise<{ symbol
         </div>
         <p className="max-w-[72ch] text-sm text-muted-foreground">
           {r.kind === 'rwa'
-            ? <>{usd(r.supplied)} of {r.symbol} is posted as collateral. It can be borrowed against up to {pct(r.ltv, 0)} of its value and is liquidated at {pct(r.liqThreshold, 0)}; the venue prices it at {usd(r.price, 2)} against an issuer NAV of {usd(r.nav, 2)}. As of {d.asOf}.</>
+            ? <>{r.supplied ? `${usd(r.supplied)} of ${r.symbol} is posted as collateral.` : `${r.symbol} is listed as collateral but nothing is posted yet.`} It can be borrowed against up to {pct(r.ltv, 0)} of its value and is liquidated at {pct(r.liqThreshold, 0)}; the venue prices it at {price(r.price)} against an issuer NAV of {price(r.nav)}. As of {d.asOf}.</>
             : <>{usd(r.supplied)} supplied, {usd(r.borrowed)} borrowed, {usd(r.available)} available. {r.risk === 'high' ? 'Utilisation is above 85%, so withdrawals may queue and rates are climbing.' : r.risk === 'moderate' ? 'Utilisation is in the healthy band: demand without a withdrawal queue.' : 'Plenty of idle liquidity, so rates are soft.'} As of {d.asOf}.</>}
         </p>
       </div>
@@ -55,7 +55,7 @@ export default async function ReservePage({ params }: { params: Promise<{ symbol
           <div className="grid grid-cols-2 gap-4 @2xl/main:grid-cols-4">
             {stat('Supplied', usd(r.supplied), r.kind === 'rwa' ? 'as collateral' : 'to be borrowed')}
             {r.kind === 'rwa' ? stat('Max LTV', pct(r.ltv, 0), `liquidates at ${pct(r.liqThreshold, 0)}`) : stat('Borrowed', usd(r.borrowed), `${pct(r.utilization, 1)} of supply`)}
-            {r.kind === 'rwa' ? stat('Oracle price', usd(r.price, 2), `NAV ${usd(r.nav, 2)}`) : stat('Supply APY', pct(r.supplyApy), 'annualised')}
+            {r.kind === 'rwa' ? stat('Oracle price', price(r.price), `NAV ${price(r.nav)}`) : stat('Supply APY', pct(r.supplyApy), 'annualised')}
             {r.kind === 'rwa' ? stat('Issuer', r.issuer, r.assetClass) : stat('Borrow APY', pct(r.borrowApy), 'annualised')}
           </div>
           <DetailCharts asOf={d.asOf} history={d.history} historySeries={r.kind === 'rwa' ? [{ key: 'supplied', label: 'Supplied' }] : [{ key: 'supplied', label: 'Supplied' }, { key: 'borrowed', label: 'Borrowed' }]}

@@ -44,7 +44,7 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
         <p className="max-w-[72ch] text-sm text-muted-foreground">
-          {usd(a.aum)} outstanding, {change30} over thirty days. {r ? (r.kind === 'rwa' ? <>{usd(r.supplied)} of it, {pct(a.deployedPct, 1)}, is posted as collateral on Aave Horizon at a max LTV of {pct(r.ltv, 0)}.</> : <>{usd(r.supplied)} of it is supplied to Aave Horizon to be borrowed.</>) : 'It is not listed on Aave Horizon; whatever is deployed elsewhere is outside this terminal.'} As of {d.asOf}.
+          {usd(a.aum)} outstanding, {change30} over thirty days. {r ? (r.kind === 'rwa' ? (r.supplied ? <>{usd(r.supplied)} of it, {pct(a.deployedPct, 1)}, is posted as collateral on Aave Horizon at a max LTV of {pct(r.ltv, 0)}.</> : <>It is listed as collateral on Aave Horizon at a max LTV of {pct(r.ltv, 0)}, but nothing is posted there yet.</>) : <>{usd(r.supplied)} of it is supplied to Aave Horizon to be borrowed.</>) : 'It is not listed on Aave Horizon; whatever is deployed elsewhere is outside this terminal.'} As of {d.asOf}.
         </p>
       </div>
       <MarketDetailLayout
@@ -52,7 +52,7 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
           <div className="grid grid-cols-2 gap-4 @2xl/main:grid-cols-4">
             {stat('AUM', usd(a.aum), a.source === 'onchain_derived' ? 'on-chain supply × price' : 'issuer NAV')}
             {stat('Change, 30 days', change30, 'issuance and price')}
-            {stat('On Aave Horizon', r ? usd(r.supplied) : 'n/a', r ? (r.kind === 'rwa' ? 'as collateral' : 'to be borrowed') : 'not listed')}
+            {stat('On Aave Horizon', r ? (r.supplied ? usd(r.supplied) : '$0') : 'n/a', r ? (r.kind === 'rwa' ? (r.supplied ? 'as collateral' : 'listed, nothing posted') : 'to be borrowed') : 'not listed')}
             {stat(a.kind === 'rwa' ? 'Deployed' : 'Issuer', a.kind === 'rwa' ? pct(a.deployedPct, 1) : a.issuer, a.kind === 'rwa' ? 'of AUM on Horizon' : a.assetClass)}
           </div>
           <DetailCharts asOf={d.asOf} history={d.history} historySeries={[{ key: 'aum', label: 'AUM' }]} historyTitle="Assets under management"

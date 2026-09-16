@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { AssetAvatar, MarketPair } from '@/components/asset-avatar';
 import { DataTable, defineColumns, SortHeader } from '@/components/data-table';
-import { pct, usd } from '@/lib/format';
+import { pct, price, usd } from '@/lib/format';
 import type { Asset, Position, Reserve, RwaMarket } from '@/lib/rwa-types';
 
 const riskClass = (u: number) => (u > 85 ? 'text-(--red)' : u > 70 ? 'text-(--yellow)' : 'text-(--green)');
@@ -56,7 +56,7 @@ const reserveColumns = defineColumns<Reserve>((col) => [
   col.accessor('borrowApy', { header: 'Borrow APY', cell: ({ row }) => <Pct value={row.original.kind === 'stable' ? row.original.borrowApy : null} /> }),
   col.accessor('ltv', { header: ({ column }) => <SortHeader column={column} label="Max LTV" />, cell: ({ row }) => <Pct value={row.original.kind === 'rwa' ? row.original.ltv : null} digits={0} muted /> }),
   col.accessor('liqThreshold', { header: 'Liq. threshold', cell: ({ row }) => <Pct value={row.original.kind === 'rwa' ? row.original.liqThreshold : null} digits={0} muted /> }),
-  col.accessor('price', { header: 'Oracle price', cell: ({ row }) => <span className="tabular-nums text-muted-foreground">{usd(row.original.price, 2)}</span> }),
+  col.accessor('price', { header: 'Oracle price', cell: ({ row }) => <span className="tabular-nums text-muted-foreground">{price(row.original.price)}</span> }),
 ]);
 export function ReservesTable({ data, title, caption, pageSize = 12 }: { data: Reserve[]; title: string; caption: Caption; pageSize?: number }) {
   return <DataTable<Reserve> rows={data} columns={reserveColumns} title={title} caption={caption} getRowId={(r) => r.id || r.symbol} rowHref={(r) => `/horizon/${r.symbol}`}

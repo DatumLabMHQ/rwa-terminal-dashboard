@@ -13,11 +13,12 @@ export default async function Assets() {
   const rwa = d.assets.filter((a) => a.kind === 'rwa'), stables = d.assets.filter((a) => a.kind === 'stable');
   const rwaAum = rwa.reduce((a, x) => a + x.aum, 0), stableAum = stables.reduce((a, x) => a + x.aum, 0);
   const onHorizon = rwa.reduce((a, x) => a + x.horizonSupplied, 0);
+  const issuers = new Set(rwa.map((a) => a.issuer)).size;
   const deployed = rwa.map((a) => ({ name: a.ticker, deployed: a.deployedPct })).sort((a, b) => b.deployed - a.deployed);
   return (
     <>
       <PageHeader eyebrow="Assets" question="Which tokenized assets exist, who issues them, and how much is put to work?"
-        answer={<>{count(rwa.length)} tokenized assets worth {usd(rwaAum)} from {count(d.kpis.issuers)} issuers, beside {count(stables.length)} stablecoins worth {usd(stableAum)}. {usd(onHorizon)} of the tokenized value, {pct(rwaAum ? (onHorizon / rwaAum) * 100 : 0, 1)}, sits on Aave Horizon as collateral; the rest is held in wallets and venues this terminal does not track. As of {d.asOf}.</>} />
+        answer={<>{count(rwa.length)} tokenized assets worth {usd(rwaAum)} from {count(issuers)} issuers, beside {count(stables.length)} stablecoins worth {usd(stableAum)}. {usd(onHorizon)} of the tokenized value, {pct(rwaAum ? (onHorizon / rwaAum) * 100 : 0, 1)}, sits on Aave Horizon as collateral; the rest is held in wallets and venues this terminal does not track. As of {d.asOf}.</>} />
       <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @4xl/main:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Tokenized AUM by issuer</CardTitle><CardDescription>Stablecoins excluded. The registry view: who has issued what, whether or not it is deployed anywhere.</CardDescription></CardHeader>

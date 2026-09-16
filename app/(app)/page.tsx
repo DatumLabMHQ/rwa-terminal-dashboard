@@ -18,7 +18,7 @@ export default async function Overview() {
   return (
     <>
       <PageHeader eyebrow="Overview" question={config.question}
-        answer={<>{usd(k.rwaAum)} of tokenized assets is tracked across {count(k.rwaAssets)} assets from {count(k.issuers)} issuers. {usd(k.deployed)} of RWA value is posted as collateral on the two venues: {usd(k.horizonSupplied)} on Aave Horizon, which is {pct(k.deployedPct, 1)} of the tracked AUM, and {usd(k.morphoCollateral)} in Morpho RWA markets. {usd(k.borrowed)} is borrowed against it, as of {d.asOf}.</>} />
+        answer={<>{usd(k.rwaAum)} of tokenized assets is tracked across {count(k.rwaAssets)} assets from {count(k.issuers)} issuers, and only {pct(k.deployedPct, 1)} of it is posted as collateral on Aave Horizon. Counting every RWA-backed token on both venues, {usd(k.deployed)} is deployed: {usd(k.horizonSupplied)} on Aave Horizon and {usd(k.morphoCollateral)} in Morpho RWA markets, with {usd(k.borrowed)} borrowed against it. As of {d.asOf}.</>} />
       <RwaCards kpis={k} asOf={d.asOf} />
       <div className="px-4 lg:px-6">
         <ChartAreaInteractive data={d.horizon} asOf={d.asOf} title="Supplied to Aave Horizon" unit="usd"
