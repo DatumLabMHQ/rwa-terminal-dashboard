@@ -27,7 +27,7 @@ export default async function MarketPage({ params }: { params: Promise<{ id: str
   if (!d) notFound();
   const m = d.market;
   const stat = (label: string, value: string, sub: string) => (
-    <Card className="@container/card"><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl font-semibold tabular-nums">{value}</CardTitle><CardDescription>{sub}</CardDescription></CardHeader></Card>
+    <Card className="@container/card"><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl font-medium tracking-tight tabular-nums">{value}</CardTitle><CardDescription>{sub}</CardDescription></CardHeader></Card>
   );
   return (
     <>
@@ -36,7 +36,7 @@ export default async function MarketPage({ params }: { params: Promise<{ id: str
         <div className="flex flex-wrap items-center gap-3">
           <MarketPair collateral={m.collateralSymbol} loan={m.loanSymbol} className="size-9" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{m.collateralSymbol} / {m.loanSymbol}</h1>
+            <h1 className="font-serif text-[1.75rem] font-medium leading-tight tracking-tight">{m.collateralSymbol} / {m.loanSymbol}</h1>
             <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5"><AssetAvatar symbol="Morpho" src={protocolLogo(config.venues.morpho.logo)} className="size-4" />Morpho</span>
               <span>·</span><span>Ethereum</span><span>·</span><span>{m.assetClass}</span>

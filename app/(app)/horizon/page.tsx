@@ -18,7 +18,7 @@ export default async function Horizon() {
   const liquidity = d.reserves.filter((r) => r.supplied > 0).map((r) => ({ name: r.symbol, borrowed: r.borrowed, available: r.available }));
   const byClass = new Map<string, number>(); d.reserves.forEach((r) => byClass.set(r.assetClass, (byClass.get(r.assetClass) ?? 0) + r.supplied));
   const stat = (label: string, value: string, sub: string) => (
-    <Card className="@container/card"><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl font-semibold tabular-nums">{value}</CardTitle><CardDescription>{sub}</CardDescription></CardHeader></Card>
+    <Card className="@container/card"><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl font-medium tracking-tight tabular-nums">{value}</CardTitle><CardDescription>{sub}</CardDescription></CardHeader></Card>
   );
   return (
     <>

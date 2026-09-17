@@ -26,7 +26,7 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
   if (!d) notFound();
   const a = d.asset, r = d.reserve;
   const stat = (label: string, value: string, sub: string) => (
-    <Card className="@container/card"><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl font-semibold tabular-nums">{value}</CardTitle><CardDescription>{sub}</CardDescription></CardHeader></Card>
+    <Card className="@container/card"><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl font-medium tracking-tight tabular-nums">{value}</CardTitle><CardDescription>{sub}</CardDescription></CardHeader></Card>
   );
   const change30 = d.facts.find((f) => f.label === 'Change, 30 days')?.value ?? 'n/a';
   return (
@@ -36,7 +36,7 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
         <div className="flex flex-wrap items-center gap-3">
           <AssetAvatar symbol={a.ticker} className="size-9" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{a.ticker}{a.name !== a.ticker ? <span className="text-muted-foreground"> · {a.name}</span> : null}</h1>
+            <h1 className="font-serif text-[1.75rem] font-medium leading-tight tracking-tight">{a.ticker}{a.name !== a.ticker ? <span className="text-muted-foreground"> · {a.name}</span> : null}</h1>
             <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>{a.issuer}</span><span>·</span><span>{a.assetClass}</span>
               <Badge variant={a.kind === 'rwa' ? 'secondary' : 'outline'}>{a.kind === 'rwa' ? 'Tokenized asset' : 'Stablecoin'}</Badge>

@@ -30,7 +30,7 @@ export function RwaCards({ kpis: k, asOf }: { kpis: RwaOverview['kpis']; asOf: s
         <Card key={s.label} className="@container/card">
           <CardHeader>
             <CardDescription>{s.label}</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">{s.value}</CardTitle>
+            <CardTitle className="text-2xl font-medium tracking-tight tabular-nums @[250px]/card:text-3xl">{s.value}</CardTitle>
             {s.change !== undefined ? <CardAction><Trend change={s.change} /></CardAction> : null}
           </CardHeader>
           <CardFooter className="flex-col items-start gap-1.5 text-sm">

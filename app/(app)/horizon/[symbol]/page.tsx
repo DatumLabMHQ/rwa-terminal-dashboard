@@ -27,7 +27,7 @@ export default async function ReservePage({ params }: { params: Promise<{ symbol
   if (!d) notFound();
   const r = d.reserve;
   const stat = (label: string, value: string, sub: string) => (
-    <Card className="@container/card"><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl font-semibold tabular-nums">{value}</CardTitle><CardDescription>{sub}</CardDescription></CardHeader></Card>
+    <Card className="@container/card"><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl font-medium tracking-tight tabular-nums">{value}</CardTitle><CardDescription>{sub}</CardDescription></CardHeader></Card>
   );
   return (
     <>
@@ -36,7 +36,7 @@ export default async function ReservePage({ params }: { params: Promise<{ symbol
         <div className="flex flex-wrap items-center gap-3">
           <AssetAvatar symbol={r.symbol} className="size-9" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{r.symbol}</h1>
+            <h1 className="font-serif text-[1.75rem] font-medium leading-tight tracking-tight">{r.symbol}</h1>
             <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5"><AssetAvatar symbol="Aave" src={protocolLogo(config.venues.horizon.logo)} className="size-4" />Aave Horizon</span>
               <span>·</span><span>{r.issuer}</span><span>·</span><span>{r.assetClass}</span>

@@ -19,3 +19,12 @@ export const navBadges: FrameData['navBadges'] = async () => {
   const o = await loadRwa();
   return { '/horizon': o.reserves.length, '/markets': o.markets.length, '/assets': o.assets.length };
 };
+/** The reserves, markets and assets under their pages in the sidebar. */
+export const navChildren: FrameData['navChildren'] = async () => {
+  const o = await loadRwa();
+  return {
+    '/horizon': o.reserves.map((r) => ({ label: r.symbol, href: `/horizon/${r.symbol}` })),
+    '/markets': o.markets.map((m) => ({ label: `${m.collateralSymbol} / ${m.loanSymbol}`, href: `/markets/${m.id}` })),
+    '/assets': o.assets.map((a) => ({ label: a.ticker, href: `/assets/${a.id}` })),
+  };
+};
