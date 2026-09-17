@@ -5,6 +5,8 @@ export const config = {
   // 'draft' until `datum check <slug>` prints READY and the owner signs the brief; the page says so.
   status: 'draft' as 'draft' | 'live',
   slug: 'rwa-terminal-dashboard',
+  // The name this dashboard's brief, product note and reconciliation rows use in datum-context.
+  context: 'rwa-terminal',
   title: 'RWA Terminal',
   description: 'Tokenized real-world assets as DeFi collateral: what is deployed on Aave Horizon and Morpho, how it is used, and where it would liquidate. Built on the Datum data platform.',
   // The question the overview answers. Pages lead with it.
