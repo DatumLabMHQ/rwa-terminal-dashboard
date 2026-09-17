@@ -42,6 +42,9 @@ export const config = {
   // How far back the overview trends go (daily rows, one call per resource) and the asset AUM history.
   trend: { days: 90 },
   assetHistoryFrom: '2024-01-01',
+  // The sign-in gate: the overview is open to everyone; every other page asks once for a name, an email
+  // and an occupation (kept on that browser). Leads join the Datum Labs list through app/api/gate.
+  gate: { enabled: true, free: ['/'] as string[] },
   nav: [
     { href: '/', label: 'Overview' },
     { href: '/horizon', label: 'Aave Horizon' },
