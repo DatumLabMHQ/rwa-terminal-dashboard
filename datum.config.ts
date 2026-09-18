@@ -3,7 +3,7 @@
 // lib/rwa-types.ts; without DATUM_API_KEY the pages run on labelled sample data (lib/sample.ts).
 export const config = {
   // 'draft' until `datum check <slug>` prints READY and the owner signs the brief; the page says so.
-  status: 'draft' as 'draft' | 'live',
+  status: 'live' as 'draft' | 'live',
   slug: 'rwa-terminal-dashboard',
   // The name this dashboard's brief, product note and reconciliation rows use in datum-context.
   context: 'rwa-terminal',
