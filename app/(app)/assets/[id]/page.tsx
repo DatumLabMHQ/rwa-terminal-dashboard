@@ -65,8 +65,9 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
               <CardContent><RadialChart value={a.deployedPct} label="on Horizon" height={180} /></CardContent>
             </Card>
           ) : null}
-          <MarketFacts facts={d.facts} />
           {r ? <Button variant="outline" nativeButton={false} render={<Link href={`/horizon/${r.symbol}`} />}>Open the Horizon reserve<ArrowRightIcon /></Button> : null}
+          {/* The facts card comes last: the aside's last child grows to the column's height. */}
+          <MarketFacts facts={d.facts} />
         </>}
       />
     </>
