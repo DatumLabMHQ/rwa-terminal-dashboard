@@ -84,8 +84,10 @@ export function sampleReserve(symbol: string): ReserveDetail | null {
   const r = reserves().find((x) => x.symbol.toLowerCase() === symbol.toLowerCase()); if (!r) return null;
   const days = daysBack(90); const s = series(days, r.supplied || 1e5, 0.12, 0.015, 21), b = series(days, r.borrowed || 0, 0.2, 0.03, 23);
   const facts = [{ label: 'Max LTV', value: `${r.ltv}%`, note: 'How much can be borrowed against this collateral' }, { label: 'Liquidation threshold', value: `${r.liqThreshold}%` }, { label: 'Oracle price', value: `$${r.price.toFixed(2)}` }, { label: 'Issuer', value: r.issuer }, { label: 'Asset class', value: r.assetClass }, { label: 'Reserve address', value: r.id }];
+  const nav = series(days, r.price, r.kind === 'rwa' ? 0.011 : 0, 0.0004, 29);
   return { asOf: SAMPLE_AS_OF, sample: true, reserve: r,
     history: days.map((day, i) => ({ day, supplied: Math.round(r.supplied ? s[i] : 0), borrowed: Math.round(r.borrowed ? b[i] : 0) })),
+    pricing: days.map((day, i) => ({ day, oracle: +(nav[i] * (i % 9 === 0 ? 0.999 : 1)).toFixed(4), nav: +nav[i].toFixed(4) })),
     rates: days.map((day, i) => ({ day, supply_apy: r.supplyApy ? +(r.supplyApy * (0.9 + (i % 7) * 0.03)).toFixed(2) : 0, borrow_apy: r.borrowApy ? +(r.borrowApy * (0.9 + (i % 5) * 0.04)).toFixed(2) : 0, utilization: r.supplied && r.borrowed ? +((b[i] / s[i]) * 100).toFixed(1) : 0 })), facts };
 }
 export function sampleRwaMarket(id: string): RwaMarketDetail | null {

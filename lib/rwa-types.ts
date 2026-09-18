@@ -43,6 +43,6 @@ export type RwaOverview = {
   reserves: Reserve[]; markets: RwaMarket[]; assets: Asset[]; positions: Position[];
   reconciliation: { ours: number; theirs: number; theirsSource: string; note: string } | null;
 };
-export type ReserveDetail = { asOf: string; sample: boolean; reserve: Reserve; history: Point[]; rates: Point[]; facts: import('./types').Fact[] };
+export type ReserveDetail = { asOf: string; sample: boolean; reserve: Reserve; history: Point[]; rates: Point[]; pricing: Point[]; facts: import('./types').Fact[] };
 export type RwaMarketDetail = { asOf: string; sample: boolean; market: RwaMarket; history: Point[]; rates: Point[]; facts: import('./types').Fact[] };
 export type AssetDetail = { asOf: string; sample: boolean; asset: Asset; history: Point[]; facts: import('./types').Fact[]; reserve: Reserve | null };

@@ -122,10 +122,11 @@ export const loadReserve = cache(async (symbol: string): Promise<ReserveDetail |
   const reserve = o.reserves.find((r) => r.symbol.toLowerCase() === symbol.toLowerCase());
   if (!reserve) return null;
   const h = await query(R.reserves.product, R.reserves.name, { symbol: reserve.symbol, since: isoDaysAgo(config.trend.days, new Date(o.asOf + 'T00:00:00Z')), limit: 1000 });
-  const rows = h.rows.map((r) => ({ day: dayOf(r.day), supplied: num(r.supplied_usd), borrowed: num(r.borrowed_usd), sa: num(r.supply_apy), ba: num(r.borrow_apy), u: num(r.utilization) })).filter((r) => r.day).sort(byDayAsc);
+  const rows = h.rows.map((r) => ({ day: dayOf(r.day), supplied: num(r.supplied_usd), borrowed: num(r.borrowed_usd), sa: num(r.supply_apy), ba: num(r.borrow_apy), u: num(r.utilization), oracle: num(r.oracle_price), nav: num(r.nav) })).filter((r) => r.day).sort(byDayAsc);
   return { asOf: o.asOf, sample: false, reserve,
     history: rows.map((r) => ({ day: r.day, supplied: r.supplied, borrowed: r.borrowed })),
     rates: rows.map((r) => ({ day: r.day, supply_apy: r.sa, borrow_apy: r.ba, utilization: r.u })),
+    pricing: rows.filter((r) => r.oracle > 0).map((r) => ({ day: r.day, oracle: r.oracle, nav: r.nav || r.oracle })),
     facts: reserveFacts(reserve) };
 });
 export const reserveFacts = (r: Reserve) => [

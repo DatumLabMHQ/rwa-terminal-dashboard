@@ -60,8 +60,11 @@ export default async function ReservePage({ params }: { params: Promise<{ symbol
           </div>
           <DetailCharts asOf={d.asOf} history={d.history} historySeries={r.kind === 'rwa' ? [{ key: 'supplied', label: 'Supplied' }] : [{ key: 'supplied', label: 'Supplied' }, { key: 'borrowed', label: 'Borrowed' }]}
             historyTitle={r.kind === 'rwa' ? 'Collateral posted' : 'Supplied and borrowed'} historyDescription={r.kind === 'rwa' ? 'How much of this asset sits in the pool as collateral.' : 'Supplied is the ceiling, borrowed is the demand; the gap is what can be withdrawn now.'}
-            rates={r.kind === 'stable' ? d.rates : undefined} ratesSeries={[{ key: 'supply_apy', label: 'Supply APY' }, { key: 'borrow_apy', label: 'Borrow APY' }, { key: 'utilization', label: 'Utilisation' }]}
-            ratesTitle="Rates and utilisation" ratesDescription="What suppliers earn, what borrowers pay, and the utilisation that drives both. Above 85% withdrawals start to queue." />
+            rates={r.kind === 'stable' ? d.rates : d.pricing}
+            ratesSeries={r.kind === 'stable' ? [{ key: 'supply_apy', label: 'Supply APY' }, { key: 'borrow_apy', label: 'Borrow APY' }, { key: 'utilization', label: 'Utilisation' }] : [{ key: 'oracle', label: 'Oracle price' }, { key: 'nav', label: 'Issuer NAV' }]}
+            ratesUnit={r.kind === 'stable' ? 'pct' : 'price'} ratesZero={r.kind === 'stable'}
+            ratesTitle={r.kind === 'stable' ? 'Rates and utilisation' : 'Oracle price against issuer NAV'}
+            ratesDescription={r.kind === 'stable' ? 'What suppliers earn, what borrowers pay, and the utilisation that drives both. Above 85% withdrawals start to queue.' : 'What the venue values one token at, beside the NAV the issuer publishes. The two should track; a gap is pricing risk, a lag is the oracle catching up, and the slope is the fund\'s own accrual.'} />
         </>}
         aside={<>
           <Card>
