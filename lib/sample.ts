@@ -2,7 +2,8 @@
 // September 2026 numbers so the dashboard can be judged as is; every page says it is sample data.
 import { SAMPLE_AS_OF } from './platform';
 import { config } from '@/datum.config';
-import type { Asset, AssetDetail, Point, Reserve, ReserveDetail, RwaMarket, RwaMarketDetail, RwaOverview } from './rwa-types';
+import type { Asset, AssetDetail, EulerPair, EulerVault, Point, Reserve, ReserveDetail, RwaMarket, RwaMarketDetail, RwaOverview } from './rwa-types';
+import { toEulerClusters, toPositions } from './rwa';
 export { SAMPLE_AS_OF };
 
 const rnd = (seed: number) => () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
@@ -29,6 +30,14 @@ const MARKETS: [string, string, string, string, number, number, number, number][
   ['5e6f', 'XAUt', 'USDC', 'Commodities (Gold)', 77, 24.9e6, 9.1e6, 5.8], ['7a8b', 'wJAAA', 'USDC', 'Private Credit (CLO)', 86, 18.2e6, 12.4e6, 5.1],
   ['9c0d', 'EUTBL', 'EURC', 'Govt Bonds (EU)', 96.5, 8.3e6, 5.0e6, 2.1], ['e1f2', 'PAXG', 'USDT', 'Commodities (Gold)', 62.5, 12.1e6, 3.0e6, 4.0], ['a3b4', 'wJAAA', 'PYUSD', 'Private Credit (CLO)', 86, 6.2e6, 3.1e6, 5.5],
 ];
+// Euler: chain, cluster, curator, RWA symbol, class, RWA supplied, loan symbol, borrow LTV %, liquidation LTV %, debt backed
+const EULER: [number, string, string, string, string, number, string, number, number, number][] = [
+  [143, 'Valos vUSD/AUSD Market', 'Valos', 'vUSD', 'Private Credit', 79.3e6, 'AUSD', 90, 91, 16.2e6],
+  [143, 'K3 Isolated gAUSD-AUSD', 'K3 Capital', 'gAUSD', 'Private Credit', 24.8e6, 'AUSD', 85, 88, 14.0e6],
+  [1, 'Clearstar OpenEden Hybond', 'Clearstar', 'HYBOND', 'Fixed Income', 4.3e6, 'USDC', 70, 80, 2.7e6],
+  [8453, 'AlphaGrowth Base RWA', 'AlphaGrowth', 'reUSD', 'Reinsurance', 0.51e6, 'USDC', 97, 98, 0.43e6],
+  [8453, 'Clearstar RWA', 'Clearstar', 'deJAAA', 'Private Credit (CLO)', 4.5e3, 'USDC', 88, 90, 0],
+];
 // id, ticker, name, issuer, AUM, source
 const ASSETS: [string, string, string, string, number, string][] = [
   ['2', 'USDC', 'USDC', 'Circle', 50572.7e6, 'onchain_derived'], ['6', 'USYC', 'USYC', 'Circle (Hashnote)', 2604.6e6, 'hashnote_api'], ['3', 'RLUSD', 'RLUSD', 'Ripple', 1369.7e6, 'onchain_derived'],
@@ -37,12 +46,23 @@ const ASSETS: [string, string, string, string, number, string][] = [
 ];
 
 const reserves = (): Reserve[] => RESERVES.map(([symbol, tail, supplied, borrowed, supplyApy, borrowApy, ltv, liqThreshold, price]) => {
-  const utilization = supplied ? (borrowed / supplied) * 100 : 0;
-  return { id: `0x${tail}${'0'.repeat(32)}${tail}`, symbol, kind: STABLE.has(symbol) ? 'stable' : 'rwa', assetClass: meta(symbol).class, issuer: meta(symbol).issuer, supplied, borrowed, available: supplied - borrowed, utilization, supplyApy, borrowApy, ltv, liqThreshold, price, nav: price, risk: risk(utilization) };
+  const utilization = supplied ? (borrowed / supplied) * 100 : 0; const rwa = !STABLE.has(symbol);
+  return { id: `0x${tail}${'0'.repeat(32)}${tail}`, symbol, kind: rwa ? 'rwa' : 'stable', assetClass: meta(symbol).class, issuer: meta(symbol).issuer, supplied, borrowed, available: supplied - borrowed, utilization, supplyApy, borrowApy, ltv, liqThreshold, price, nav: price, risk: risk(utilization),
+    emodeLtv: rwa ? ltv + 2 : null, emodeLiqThreshold: rwa ? liqThreshold + 2 : null, emodeBorrowable: rwa ? 'GHO' : null, emodeLabel: rwa ? `${symbol} GHO` : null };
 });
+const eulerSample = () => {
+  const vaults: EulerVault[] = []; const pairs: EulerPair[] = [];
+  EULER.forEach(([chainId, cluster, curator, symbol, assetClass, supplied, loan, bl, ll, debt], i) => {
+    const clusterId = `${chainId}-${cluster.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
+    vaults.push({ id: `${chainId}-0xe${i}`, chainId, vault: `0xe${i}`, symbol, assetClass, issuer: curator, cluster, clusterId, curator, role: 'collateral', supplied, borrowed: 0, utilization: null, supplyApy: null, borrowApy: null });
+    vaults.push({ id: `${chainId}-0xb${i}`, chainId, vault: `0xb${i}`, symbol: loan, assetClass: null, issuer: null, cluster, clusterId, curator, role: 'borrowable', supplied: debt * 1.6, borrowed: debt, utilization: 62, supplyApy: 4.1, borrowApy: 6.6 });
+    pairs.push({ id: `${chainId}-${i}`, chainId, cluster, clusterId, curator, borrowSymbol: loan, collateralSymbol: symbol, collateralClass: assetClass, collateralIssuer: curator, borrowLtv: bl, liqLtv: ll, debtBacked: debt });
+  });
+  return { vaults, pairs, clusters: toEulerClusters(vaults, pairs) };
+};
 const markets = (): RwaMarket[] => MARKETS.map(([tail, collateralSymbol, loanSymbol, assetClass, lltv, collateralUsd, borrowed, borrowApy]) => {
   const utilization = (borrowed / (collateralUsd * lltv / 100)) * 100 * 0.9;
-  return { id: `0x${tail}${'0'.repeat(56)}${tail}`, collateralSymbol, loanSymbol, assetClass, lltv, collateralUsd, borrowed, utilization, borrowApy, risk: risk(utilization) };
+  return { id: `0x${tail}${'0'.repeat(56)}${tail}`, chainId: 1, collateralSymbol, loanSymbol, assetClass, issuer: '', listed: true, lltv, collateralUsd, borrowed, utilization, borrowApy, risk: risk(utilization) };
 });
 const assets = (rs: Reserve[]): Asset[] => ASSETS.map(([id, ticker, name, issuer, aum, source]) => {
   const horizonSupplied = rs.find((r) => r.symbol === ticker)?.supplied ?? 0;
@@ -58,24 +78,23 @@ export function sampleRwa(): RwaOverview {
   const aumSeries = series(days, 4820.3e6, 0.06, 0.004, 17);
   const horizon: Point[] = days.map((day, i) => ({ day, rwa: Math.round(rwaSeries[i]), stable: Math.round(stSeries[i]), borrowed: Math.round(boSeries[i]) }));
   const aum: Point[] = days.map((day, i) => ({ day, aum: Math.round(aumSeries[i]), holders: 430 + Math.round(i * 0.47) }));
+  const euler = eulerSample();
   const horizonSupplied = rwaSeries[rwaSeries.length - 1], morphoCollateral = ms.reduce((a, m) => a + m.collateralUsd, 0);
-  const borrowed = boSeries[boSeries.length - 1] + ms.reduce((a, m) => a + m.borrowed, 0);
-  const suppliedAll = rs.reduce((a, r) => a + r.supplied, 0) + morphoCollateral;
+  const eulerCollateral = euler.clusters.reduce((a, c) => a + c.rwaSupplied, 0), eulerBorrowed = euler.clusters.reduce((a, c) => a + c.debtBacked, 0);
+  const borrowed = boSeries[boSeries.length - 1] + ms.reduce((a, m) => a + m.borrowed, 0) + eulerBorrowed;
   const rwaAum = aumSeries[aumSeries.length - 1];
   const share = (m: Map<string, number>) => [...m.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   const cls = new Map<string, number>(); rs.filter((r) => r.kind === 'rwa').forEach((r) => cls.set(r.assetClass, (cls.get(r.assetClass) ?? 0) + r.supplied)); ms.forEach((m) => cls.set(m.assetClass, (cls.get(m.assetClass) ?? 0) + m.collateralUsd));
   const iss = new Map<string, number>(); as.filter((a) => a.kind === 'rwa').forEach((a) => iss.set(a.issuer, (iss.get(a.issuer) ?? 0) + a.aum));
-  const positions = [
-    ...rs.filter((r) => r.kind === 'rwa').map((r) => ({ id: `horizon-${r.symbol}`, venue: 'Aave Horizon' as const, asset: r.symbol, loan: null, assetClass: r.assetClass, collateral: r.supplied, borrowed: null, maxLtv: r.ltv, liqThreshold: r.liqThreshold, utilization: null, borrowApy: null, href: `/horizon/${r.symbol}`, logo: '/brand/logos/aave-v3.webp' })),
-    ...ms.map((m) => ({ id: `morpho-${m.id}`, venue: 'Morpho' as const, asset: m.collateralSymbol, loan: m.loanSymbol, assetClass: m.assetClass, collateral: m.collateralUsd, borrowed: m.borrowed, maxLtv: m.lltv, liqThreshold: null, utilization: m.utilization, borrowApy: m.borrowApy, href: `/markets/${m.id}`, logo: '/brand/logos/morpho-blue.webp' })),
-  ].sort((a, b) => b.collateral - a.collateral);
+  const positions = toPositions(rs, ms, euler);
   return {
     asOf: SAMPLE_AS_OF, sample: true,
     kpis: { rwaAum, rwaAumChange7d: (rwaAum / aumSeries[aumSeries.length - 8] - 1) * 100, rwaAssets: as.filter((a) => a.kind === 'rwa').length,
-      deployed: horizonSupplied + morphoCollateral, deployedPct: (horizonSupplied / rwaAum) * 100, horizonSupplied, morphoCollateral, deployedChange7d: (horizonSupplied / rwaSeries[rwaSeries.length - 8] - 1) * 100,
-      borrowed, utilization: (borrowed / suppliedAll) * 100, holders: 472, issuers: 9 },
-    horizon, aum, byVenue: share(new Map([['Aave Horizon', horizonSupplied], ['Morpho', morphoCollateral]])), byClass: share(cls), byIssuer: share(iss),
-    reserves: rs, markets: ms, assets: as, positions,
+      deployed: horizonSupplied + morphoCollateral + eulerCollateral, deployedPct: (horizonSupplied / rwaAum) * 100, horizonSupplied, morphoCollateral, eulerCollateral, horizonSuppliedChange7d: (horizonSupplied / rwaSeries[rwaSeries.length - 8] - 1) * 100,
+      borrowed, horizonBorrowed: boSeries[boSeries.length - 1], morphoBorrowed: ms.reduce((a, m) => a + m.borrowed, 0), eulerBorrowed, borrowedPerCollateral: (borrowed / (horizonSupplied + morphoCollateral + eulerCollateral)) * 100,
+      holders: 472, holdersDay: SAMPLE_AS_OF, issuers: iss.size },
+    horizon, aum, byVenue: share(new Map([['Aave Horizon', horizonSupplied], ['Morpho', morphoCollateral], ['Euler', eulerCollateral]])), byClass: share(cls), byIssuer: share(iss),
+    reserves: rs, markets: ms, assets: as, positions, euler,
     reconciliation: { ours: rs.reduce((a, r) => a + r.supplied, 0), theirs: 462.1e6, theirsSource: 'DefiLlama (sample)', note: 'Both count what is supplied to the Horizon pool, stablecoins included, so they should sit close; a gap is timing or pricing.' },
   };
 }

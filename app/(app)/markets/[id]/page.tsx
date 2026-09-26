@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { config } from '@/datum.config';
 import { loadRwaMarket } from '@/lib/data';
 import { pct, usd } from '@/lib/format';
-import { protocolLogo } from '@/lib/chains';
+import { chainName, protocolLogo } from '@/lib/chains';
 import { Badge } from '@/components/ui/badge';
 import { PageBreadcrumb } from '@/components/page-breadcrumb';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,7 +39,7 @@ export default async function MarketPage({ params }: { params: Promise<{ id: str
             <h1 className="font-serif text-[1.75rem] font-medium leading-tight tracking-tight">{m.collateralSymbol} / {m.loanSymbol}</h1>
             <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5"><AssetAvatar symbol="Morpho" src={protocolLogo(config.venues.morpho.logo)} className="size-4" />Morpho</span>
-              <span>·</span><span>Ethereum</span><span>·</span><span>{m.assetClass}</span>
+              <span>·</span><span>{chainName(m.chainId)}</span><span>·</span><span>{m.assetClass}</span>
               <Badge variant="outline" className={RISK_CLASS[m.risk]}><span className="size-1.5 rounded-full bg-current" />{pct(m.utilization, 1)} utilised</Badge>
             </p>
           </div>

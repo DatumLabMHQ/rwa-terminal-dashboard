@@ -18,7 +18,7 @@ export default async function Overview() {
   return (
     <>
       <PageHeader eyebrow="Overview" question={config.question}
-        answer={<>{usd(k.rwaAum)} of tokenized assets is tracked across {count(k.rwaAssets)} assets from {count(k.issuers)} issuers, and only {pct(k.deployedPct, 1)} of it is posted as collateral on Aave Horizon. Counting every RWA-backed token on both venues, {usd(k.deployed)} is deployed: {usd(k.horizonSupplied)} on Aave Horizon and {usd(k.morphoCollateral)} in Morpho RWA markets, with {usd(k.borrowed)} borrowed against it. As of {d.asOf}.</>} />
+        answer={<>{usd(k.rwaAum)} of tokenized assets is tracked across {count(k.rwaAssets)} assets from {count(k.issuers)} issuers, and only {pct(k.deployedPct, 1)} of it is posted as collateral on Aave Horizon. Counting every RWA-backed token on the three venues, {usd(k.deployed)} is deployed: {usd(k.horizonSupplied)} on Aave Horizon, {usd(k.morphoCollateral)} in Morpho RWA markets and {usd(k.eulerCollateral)} in Euler RWA clusters, with {usd(k.borrowed)} borrowed against it. As of {d.asOf}.</>} />
       <RwaCards kpis={k} asOf={d.asOf} />
       <div className="px-4 lg:px-6">
         <ChartAreaInteractive data={d.horizon} asOf={d.asOf} title="Supplied to Aave Horizon" unit="usd"
@@ -31,16 +31,16 @@ export default async function Overview() {
           <CardContent className="px-2"><AreaChart data={d.aum} series={[{ key: 'aum', label: 'RWA AUM' }]} unit="usd" height={220} /></CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Deployed by venue</CardTitle><CardDescription>Where RWA collateral sits. Horizon holds the tokenized funds; Morpho holds RWA-backed dollars and gold.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Deployed by venue</CardTitle><CardDescription>Where RWA collateral sits. Horizon holds tokenized funds; Morpho holds private credit, reinsurance and gold on five chains; Euler holds curator clusters, mostly private credit on Monad.</CardDescription></CardHeader>
           <CardContent><DonutChart items={d.byVenue} unit="usd" height={220} centerLabel="deployed" /></CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Deployed by asset class</CardTitle><CardDescription>Across both venues. Treasuries dominate the funds on Horizon; private credit and gold dominate Morpho.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Deployed by asset class</CardTitle><CardDescription>Across the three venues. Classes come from the platform, so a token is labelled the same wherever it is posted.</CardDescription></CardHeader>
           <CardContent><DonutChart items={d.byClass} unit="usd" height={220} centerLabel="deployed" /></CardContent>
         </Card>
       </div>
       <PositionsTable data={d.positions} title="Positions: asset × venue" pageSize={12}
-        caption={<><b className="font-medium text-foreground">The unit this terminal is about.</b> One row per asset per venue: how much is posted, how far it can be borrowed against, and where it liquidates. Horizon rows are supply-only collateral, so their borrowing shows in the stablecoin reserves instead.</>} />
+        caption={<><b className="font-medium text-foreground">The unit this terminal is about.</b> One row per asset per venue: how much is posted, how far it can be borrowed against, and where it liquidates. Horizon rows are supply-only collateral, so their borrowing shows in the stablecoin reserves instead; Euler rows show the debt each RWA vault backs. Positions under $1,000 are left out.</>} />
       {d.reconciliation ? (
         <p className="px-4 text-sm text-muted-foreground lg:px-6"><b className="font-medium text-foreground">Reconciliation.</b> Our AUM for {config.resources.comparison.issuer}&apos;s tokens is {usd(d.reconciliation.ours)}; {d.reconciliation.theirsSource} reports {usd(d.reconciliation.theirs)}. {d.reconciliation.note}</p>
       ) : null}

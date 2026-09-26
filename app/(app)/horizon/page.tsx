@@ -23,7 +23,7 @@ export default async function Horizon() {
   return (
     <>
       <PageHeader eyebrow="Aave Horizon" question="How is the Horizon pool being used?"
-        answer={<>{usd(supplied)} is supplied across {count(d.reserves.length)} reserves and {usd(borrowed)} of it is borrowed, {pct(util, 1)} of the pool. Tokenized assets are {usd(rwaSupplied)} of the supply and are collateral only; all the borrowing is in the {count(stables.length)} stablecoin reserves. {tight.length === 0 ? 'No stablecoin reserve is above 85% utilisation, the line where withdrawals start to queue.' : `${tight.map((r) => r.symbol).join(', ')} ${tight.length === 1 ? 'is' : 'are'} above 85% utilisation, where withdrawals start to queue.`} As of {d.asOf}.</>} />
+        answer={<>{usd(supplied)} is supplied across {count(d.reserves.length)} reserves and {usd(borrowed)} of it is borrowed, {pct(util, 1)} of the pool. Tokenized assets are {usd(rwaSupplied)} of the supply and are collateral only; all the borrowing is in the {count(stables.length)} stablecoin reserves. {tight.length === 0 ? 'Every stablecoin reserve has more than 15% of its supply free to withdraw.' : `${tight.map((r) => r.symbol).join(', ')} ${tight.length === 1 ? 'is' : 'are'} above 85% utilisation, so less than 15% of ${tight.length === 1 ? 'its' : 'their'} supply is free to withdraw.`} As of {d.asOf}.</>} />
       <div className="grid grid-cols-2 gap-4 px-4 lg:px-6 @2xl/main:grid-cols-4">
         {stat('Supplied', usd(supplied), `${count(d.reserves.length)} reserves`)}
         {stat('Borrowed', usd(borrowed), `${pct(util, 1)} of supply`)}

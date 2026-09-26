@@ -1,13 +1,14 @@
 // Loads the RWA shapes the pages read. From the platform when DATUM_API_KEY is set, otherwise from
-// lib/sample.ts, labelled as sample on every page. Four resources, all daily grain: rwa/totals,
-// rwa/reserves, rwa/morpho-markets, rwa/assets.
+// lib/sample.ts, labelled as sample on every page. Resources, all daily grain: rwa/totals, rwa/reserves,
+// rwa/morpho-markets, rwa/assets, rwa/euler-vaults, rwa/euler-pairs. Asset classes come from the platform
+// (datum-models seeds); config.assets is only the fallback for a ticker the platform has not classified.
 import { cache } from 'react';
 import { config } from '@/datum.config';
 import { hasKey, query } from './datum';
 import { num, pct, price, usd } from './format';
-import { protocolLogo } from './chains';
+import { chainName, protocolLogo } from './chains';
 import { sampleAsset, sampleReserve, sampleRwa, sampleRwaMarket } from './sample';
-import type { Asset, AssetDetail, Kind, Point, Position, Reserve, ReserveDetail, Risk, RwaMarket, RwaMarketDetail, RwaOverview, Share } from './rwa-types';
+import type { Asset, AssetDetail, EulerCluster, EulerClusterDetail, EulerPair, EulerVault, Kind, Point, Position, Reserve, ReserveDetail, Risk, RwaMarket, RwaMarketDetail, RwaOverview, Share } from './rwa-types';
 
 const R = config.resources;
 const STABLE = new Set(config.stablecoins);
@@ -21,47 +22,93 @@ const sum = <T,>(xs: T[], f: (x: T) => number) => xs.reduce((a, x) => a + f(x), 
 const addTo = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v);
 const shares = (m: Map<string, number>): Share[] => [...m.entries()].map(([name, value]) => ({ name, value })).filter((s) => s.value > 0).sort((a, b) => b.value - a.value);
 const change = (now: number, then: number | undefined) => (then ? (now / then - 1) * 100 : 0);
-const SOURCE_LABEL: Record<string, string> = { superstate_api: 'Superstate API (NAV)', hashnote_api: 'Hashnote API (NAV)', onchain_derived: 'On-chain supply at the oracle price' };
+const SOURCE_LABEL: Record<string, string> = { superstate_api: 'Superstate API (NAV)', hashnote_api: 'Hashnote API (NAV)', onchain_derived: 'On-chain supply at the oracle price (Ethereum)',
+  centrifuge_api: 'Centrifuge: supply on every chain × token price', chain_rpc_x_horizon_nav: 'Supply on every chain × Horizon NAV' };
+// Positions and markets below this are dust (test markets, emptied vaults); they stay on their venue page counts but not in tables.
+export const DUST_USD = 1000;
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+const nullable = (v: unknown) => (v == null || v === '' ? null : num(v));
 export const sourceLabel = (s: string) => SOURCE_LABEL[s] ?? s;
 
-export function toReserve(r: Record<string, unknown>): Reserve {
+export function toReserve(r: Record<string, unknown>, classOf: Map<string, string> = new Map()): Reserve {
   const symbol = String(r.symbol ?? ''); const supplied = num(r.supplied_usd), borrowed = num(r.borrowed_usd);
   const utilization = r.utilization != null ? num(r.utilization) : supplied ? (borrowed / supplied) * 100 : 0;
-  return { id: String(r.reserve ?? '').toLowerCase(), symbol, kind: kindOf(symbol), assetClass: meta(symbol).class, issuer: meta(symbol).issuer,
+  return { id: String(r.reserve ?? '').toLowerCase(), symbol, kind: kindOf(symbol), assetClass: classOf.get(symbol) ?? meta(symbol).class, issuer: meta(symbol).issuer,
     supplied, borrowed, available: Math.max(0, supplied - borrowed), utilization, supplyApy: num(r.supply_apy), borrowApy: num(r.borrow_apy),
-    ltv: num(r.ltv), liqThreshold: num(r.liquidation_threshold), price: num(r.oracle_price), nav: num(r.nav), risk: risk(utilization) };
+    ltv: num(r.ltv), liqThreshold: num(r.liquidation_threshold), price: num(r.oracle_price), nav: num(r.nav), risk: risk(utilization),
+    emodeLtv: nullable(r.emode_ltv), emodeLiqThreshold: nullable(r.emode_liquidation_threshold), emodeBorrowable: r.emode_borrowable ? String(r.emode_borrowable) : null, emodeLabel: r.emode_label ? String(r.emode_label) : null };
 }
 export function toMarket(r: Record<string, unknown>): RwaMarket {
   const utilization = num(r.utilization) * 100;
-  return { id: String(r.market_id ?? '').toLowerCase(), collateralSymbol: String(r.collateral_symbol ?? ''), loanSymbol: String(r.loan_symbol ?? ''), assetClass: String(r.asset_class ?? 'Other'),
+  return { id: String(r.market_id ?? '').toLowerCase(), chainId: num(r.chain_id) || 1, collateralSymbol: String(r.collateral_symbol ?? ''), loanSymbol: String(r.loan_symbol ?? ''), assetClass: String(r.asset_class ?? 'Other'),
+    issuer: String(r.issuer ?? ''), listed: r.listed !== false,
     lltv: num(r.lltv) * 100, collateralUsd: num(r.collateral_usd), borrowed: num(r.borrow_usd), utilization, borrowApy: num(r.borrow_apy) * 100, risk: risk(utilization) };
 }
 export function toAsset(r: Record<string, unknown>, horizon: Map<string, number>): Asset {
   const ticker = String(r.ticker ?? ''); const aum = num(r.aum_usd); const horizonSupplied = horizon.get(ticker) ?? 0;
-  return { id: String(r.asset_id ?? ''), ticker, name: String(r.asset_name ?? ticker), issuer: String(r.issuer ?? meta(ticker).issuer), kind: kindOf(ticker), assetClass: meta(ticker).class,
+  return { id: String(r.asset_id ?? ''), ticker, name: String(r.asset_name ?? ticker), issuer: String(r.issuer ?? meta(ticker).issuer), kind: r.is_stablecoin != null ? (r.is_stablecoin ? 'stable' : 'rwa') : kindOf(ticker),
+    assetClass: String(r.asset_class ?? meta(ticker).class),
     aum, source: String(r.source ?? ''), horizonSupplied, deployedPct: aum ? (horizonSupplied / aum) * 100 : 0 };
 }
-export function toPositions(reserves: Reserve[], markets: RwaMarket[]): Position[] {
-  const h: Position[] = reserves.filter((r) => r.kind === 'rwa').map((r) => ({ id: `horizon-${r.symbol}`, venue: 'Aave Horizon', asset: r.symbol, loan: null, assetClass: r.assetClass,
+export function toEulerVault(r: Record<string, unknown>): EulerVault {
+  const cluster = String(r.cluster ?? ''), chainId = num(r.chain_id);
+  return { id: `${chainId}-${String(r.vault ?? '').toLowerCase()}`, chainId, vault: String(r.vault ?? '').toLowerCase(), symbol: String(r.asset_symbol ?? ''),
+    assetClass: r.asset_class ? String(r.asset_class) : null, issuer: r.issuer ? String(r.issuer) : null, cluster, clusterId: `${chainId}-${slug(cluster)}`, curator: String(r.curator ?? ''),
+    role: String(r.role ?? 'borrowable') as EulerVault['role'], supplied: num(r.supply_usd), borrowed: num(r.borrow_usd),
+    utilization: r.utilization != null ? num(r.utilization) * 100 : null, supplyApy: nullable(r.supply_apy), borrowApy: nullable(r.borrow_apy) };
+}
+export function toEulerPair(r: Record<string, unknown>): EulerPair {
+  const cluster = String(r.cluster ?? ''), chainId = num(r.chain_id);
+  return { id: `${chainId}-${r.borrow_vault}-${r.collateral_vault}`, chainId, cluster, clusterId: `${chainId}-${slug(cluster)}`, curator: String(r.curator ?? ''),
+    borrowSymbol: String(r.borrow_symbol ?? ''), collateralSymbol: String(r.collateral_symbol ?? 'another vault'), collateralClass: r.collateral_class ? String(r.collateral_class) : null,
+    collateralIssuer: r.collateral_issuer ? String(r.collateral_issuer) : null, borrowLtv: num(r.borrow_ltv) * 100, liqLtv: num(r.liquidation_ltv) * 100, debtBacked: num(r.debt_backed_usd) };
+}
+export function toEulerClusters(vaults: EulerVault[], pairs: EulerPair[]): EulerCluster[] {
+  const out = new Map<string, EulerCluster>();
+  vaults.filter((v) => v.role !== 'candidate' && v.cluster).forEach((v) => {
+    const c = out.get(v.clusterId) ?? { id: v.clusterId, name: v.cluster, curator: v.curator, chainId: v.chainId, rwaAssets: [], borrowable: [], rwaSupplied: 0, debtBacked: 0, pairs: 0 };
+    if (v.role === 'collateral') { c.rwaAssets.push(v.symbol); c.rwaSupplied += v.supplied; } else if (!c.borrowable.includes(v.symbol)) c.borrowable.push(v.symbol);
+    out.set(v.clusterId, c);
+  });
+  pairs.forEach((p) => { const c = out.get(p.clusterId); if (c) { c.pairs += 1; if (p.collateralClass) c.debtBacked += p.debtBacked; } });
+  return [...out.values()].sort((a, b) => b.rwaSupplied - a.rwaSupplied || b.pairs - a.pairs);
+}
+export function toPositions(reserves: Reserve[], markets: RwaMarket[], euler: { vaults: EulerVault[]; pairs: EulerPair[] } = { vaults: [], pairs: [] }): Position[] {
+  const h: Position[] = reserves.filter((r) => r.kind === 'rwa').map((r) => ({ id: `horizon-${r.symbol}`, venue: 'Aave Horizon', chainId: 1, asset: r.symbol, loan: null, assetClass: r.assetClass,
     collateral: r.supplied, borrowed: null, maxLtv: r.ltv, liqThreshold: r.liqThreshold, utilization: null, borrowApy: null, href: `/horizon/${r.symbol}`, logo: protocolLogo(config.venues.horizon.logo) }));
-  const m: Position[] = markets.map((x) => ({ id: `morpho-${x.id}`, venue: 'Morpho', asset: x.collateralSymbol, loan: x.loanSymbol, assetClass: x.assetClass,
+  const m: Position[] = markets.map((x) => ({ id: `morpho-${x.chainId}-${x.id}`, venue: 'Morpho', chainId: x.chainId, asset: x.collateralSymbol, loan: x.loanSymbol, assetClass: x.assetClass,
     collateral: x.collateralUsd, borrowed: x.borrowed, maxLtv: x.lltv, liqThreshold: null, utilization: x.utilization, borrowApy: x.borrowApy, href: `/markets/${x.id}`, logo: protocolLogo(config.venues.morpho.logo) }));
-  return [...h, ...m].sort((a, b) => b.collateral - a.collateral);
+  // Euler: one position per RWA collateral vault; borrowed is the debt that vault backs across the pairs that accept it.
+  const e: Position[] = euler.vaults.filter((v) => v.role === 'collateral').map((v) => {
+    const ps = euler.pairs.filter((p) => p.chainId === v.chainId && p.collateralSymbol === v.symbol && p.clusterId === v.clusterId);
+    const loans = [...new Set(ps.map((p) => p.borrowSymbol))];
+    return { id: `euler-${v.id}`, venue: 'Euler', chainId: v.chainId, asset: v.symbol, loan: loans.length === 1 ? loans[0] : loans.length ? `${loans.length} assets` : null, assetClass: v.assetClass ?? 'Other',
+      collateral: v.supplied, borrowed: ps.reduce((a, p) => a + p.debtBacked, 0), maxLtv: Math.max(0, ...ps.map((p) => p.borrowLtv)), liqThreshold: ps.length ? Math.max(...ps.map((p) => p.liqLtv)) : null,
+      utilization: null, borrowApy: null, href: `/euler/${v.clusterId}`, logo: protocolLogo(config.venues.euler.logo) };
+  });
+  return [...h, ...m, ...e].filter((p) => p.venue === 'Aave Horizon' || p.collateral >= DUST_USD).sort((a, b) => b.collateral - a.collateral);
 }
 
 /** The overview: the latest day of every resource, ninety days of daily history for the trends. */
 export const loadRwa = cache(async (): Promise<RwaOverview> => {
   if (!hasKey()) return sampleRwa();
   const since = isoDaysAgo(config.trend.days + 2);
-  const [t, rs, ms, as, rh] = await Promise.all([
+  // Euler resources are newer than the rest; a platform without them yet reads as no Euler clusters, not an error.
+  const optional = (p: Promise<Awaited<ReturnType<typeof query>>>) => p.catch(() => ({ rows: [] as Record<string, unknown>[], day: null }));
+  const [t, rs, ms, as, rh, ev, ep] = await Promise.all([
     query(R.totals.product, R.totals.name, { since, limit: 400 }),
     query(R.reserves.product, R.reserves.name, { limit: 500 }),
-    query(R.markets.product, R.markets.name, { limit: 500 }),
+    query(R.markets.product, R.markets.name, { limit: 1000 }),
     query(R.assets.product, R.assets.name, { limit: 500 }),
     query(R.reserves.product, R.reserves.name, { since, limit: 5000 }),
+    optional(query(R.eulerVaults.product, R.eulerVaults.name, { limit: 2000 })),
+    optional(query(R.eulerPairs.product, R.eulerPairs.name, { limit: 2000 })),
   ]);
-  const reserves = rs.rows.map(toReserve).sort((a, b) => b.supplied - a.supplied);
+  const classOf = new Map(as.rows.filter((r) => r.asset_class).map((r) => [String(r.ticker), String(r.asset_class)]));
+  const reserves = rs.rows.map((r) => toReserve(r, classOf)).sort((a, b) => b.supplied - a.supplied);
   const markets = ms.rows.map(toMarket).sort((a, b) => b.collateralUsd - a.collateralUsd);
+  const eulerVaults = ev.rows.map(toEulerVault), eulerPairs = ep.rows.map(toEulerPair);
+  const euler = { vaults: eulerVaults, pairs: eulerPairs, clusters: toEulerClusters(eulerVaults, eulerPairs) };
   const horizonBySymbol = new Map(reserves.map((r) => [r.symbol, r.supplied]));
   const assets = as.rows.map((r) => toAsset(r, horizonBySymbol)).sort((a, b) => b.aum - a.aum);
   const totals = t.rows.map((r) => ({ day: dayOf(r.day), aum: num(r.rwa_aum_usd), holders: num(r.holders), issuers: num(r.issuers), horizon: num(r.horizon_supplied_usd) })).filter((r) => r.day).sort(byDayAsc);
@@ -82,17 +129,23 @@ export const loadRwa = cache(async (): Promise<RwaOverview> => {
 
   const rwaReserves = reserves.filter((r) => r.kind === 'rwa');
   const horizonSupplied = sum(rwaReserves, (r) => r.supplied), morphoCollateral = sum(markets, (m) => m.collateralUsd);
-  const deployed = horizonSupplied + morphoCollateral;
+  const eulerRwa = eulerVaults.filter((v) => v.role === 'collateral');
+  const eulerCollateral = sum(eulerRwa, (v) => v.supplied);
+  const deployed = horizonSupplied + morphoCollateral + eulerCollateral;
   const rwaAum = latest?.aum || sum(assets.filter((a) => a.kind === 'rwa'), (a) => a.aum);
   // The share deployed is measured on the tracked assets themselves, so numerator and denominator are the same universe.
   const trackedOnHorizon = sum(assets.filter((a) => a.kind === 'rwa'), (a) => a.horizonSupplied);
   const weekAgo = totals.find((r) => r.day === isoDaysAgo(7, asOfDate));
   const horizonWeekAgo = horizon.find((p) => p.day === isoDaysAgo(7, asOfDate));
-  const borrowed = sum(reserves, (r) => r.borrowed) + sum(markets, (m) => m.borrowed);
-  const suppliedAll = sum(reserves, (r) => r.supplied) + morphoCollateral;
+  const horizonBorrowed = sum(reserves, (r) => r.borrowed), morphoBorrowed = sum(markets, (m) => m.borrowed);
+  const eulerBorrowed = sum(eulerPairs.filter((p) => p.collateralClass), (p) => p.debtBacked);   // debt backed by RWA collateral vaults
+  const borrowed = horizonBorrowed + morphoBorrowed + eulerBorrowed;
+  // Holder snapshots are not daily; a day without one carries 0, which means missing, not nobody.
+  const lastHolders = [...totals].reverse().find((r) => r.holders > 0);
 
-  const byVenue = shares(new Map([[config.venues.horizon.label, horizonSupplied], [config.venues.morpho.label, morphoCollateral]]));
+  const byVenue = shares(new Map([[config.venues.horizon.label, horizonSupplied], [config.venues.morpho.label, morphoCollateral], [config.venues.euler.label, eulerCollateral]]));
   const cls = new Map<string, number>(); rwaReserves.forEach((r) => addTo(cls, r.assetClass, r.supplied)); markets.forEach((m) => addTo(cls, m.assetClass, m.collateralUsd));
+  eulerRwa.forEach((v) => addTo(cls, v.assetClass ?? 'Other', v.supplied));
   const iss = new Map<string, number>(); assets.filter((a) => a.kind === 'rwa').forEach((a) => addTo(iss, a.issuer, a.aum));
 
   let reconciliation: RwaOverview['reconciliation'] = null;
@@ -107,11 +160,14 @@ export const loadRwa = cache(async (): Promise<RwaOverview> => {
     asOf, sample: false,
     kpis: {
       rwaAum, rwaAumChange7d: change(rwaAum, weekAgo?.aum), rwaAssets: assets.filter((a) => a.kind === 'rwa').length,
-      deployed, deployedPct: rwaAum ? (trackedOnHorizon / rwaAum) * 100 : 0, horizonSupplied, morphoCollateral,
-      deployedChange7d: change(horizonSupplied, horizonWeekAgo ? num(horizonWeekAgo.rwa) : undefined),
-      borrowed, utilization: suppliedAll ? (borrowed / suppliedAll) * 100 : 0, holders: latest?.holders ?? 0, issuers: latest?.issuers ?? iss.size,
+      deployed, deployedPct: rwaAum ? (trackedOnHorizon / rwaAum) * 100 : 0, horizonSupplied, morphoCollateral, eulerCollateral,
+      horizonSuppliedChange7d: change(horizonSupplied, horizonWeekAgo ? num(horizonWeekAgo.rwa) : undefined),
+      borrowed, horizonBorrowed, morphoBorrowed, eulerBorrowed, borrowedPerCollateral: deployed ? (borrowed / deployed) * 100 : 0,
+      holders: lastHolders?.holders ?? 0, holdersDay: lastHolders?.day ?? '',
+      // Issuers of the tracked tokenized assets. The platform's own count also takes in the stablecoin issuers.
+      issuers: iss.size,
     },
-    horizon, aum, byVenue, byClass: shares(cls), byIssuer: shares(iss), reserves, markets, assets, positions: toPositions(reserves, markets), reconciliation,
+    horizon, aum, byVenue, byClass: shares(cls), byIssuer: shares(iss), reserves, markets, assets, positions: toPositions(reserves, markets, euler), euler, reconciliation,
   };
 });
 
@@ -130,7 +186,8 @@ export const loadReserve = cache(async (symbol: string): Promise<ReserveDetail |
     facts: reserveFacts(reserve) };
 });
 export const reserveFacts = (r: Reserve) => [
-  ...(r.kind === 'rwa' ? [{ label: 'Max LTV', value: pct(r.ltv, 0), note: 'How much can be borrowed against this collateral' }, { label: 'Liquidation threshold', value: pct(r.liqThreshold, 0), note: 'Debt to collateral ratio at which the position can be liquidated' }]
+  ...(r.kind === 'rwa' ? [{ label: 'Max LTV', value: pct(r.ltv, r.ltv > 0 && r.ltv < 1 ? 2 : 0), note: 'Base parameters: apply when borrowing any stablecoin outside e-mode' }, { label: 'Liquidation threshold', value: pct(r.liqThreshold, r.liqThreshold > 0 && r.liqThreshold < 1 ? 2 : 0), note: 'Debt to collateral ratio at which the position can be liquidated' },
+      ...(r.emodeLtv != null ? [{ label: 'E-mode LTV / threshold', value: `${pct(r.emodeLtv, 0)} / ${pct(r.emodeLiqThreshold, 0)}`, note: `Category ${r.emodeLabel ?? ''}: only when borrowing ${r.emodeBorrowable ?? 'the category assets'}` }] : [])]
     : [{ label: 'Role', value: 'Borrowable stablecoin', note: 'Supplied to be lent out; not accepted as collateral' }]),
   { label: 'Oracle price', value: price(r.price), note: 'What the venue values one token at' },
   ...(r.nav ? [{ label: 'Issuer NAV', value: price(r.nav), note: r.price && Math.abs(r.price / r.nav - 1) > 0.005 ? 'Differs from the oracle price by more than 0.5%: pricing risk' : 'In line with the oracle price' }] : []),
@@ -144,7 +201,7 @@ export const loadRwaMarket = cache(async (id: string): Promise<RwaMarketDetail |
   const o = await loadRwa();
   const market = o.markets.find((m) => m.id === id.toLowerCase());
   if (!market) return null;
-  const h = await query(R.markets.product, R.markets.name, { market_id: market.id, since: isoDaysAgo(config.trend.days, new Date(o.asOf + 'T00:00:00Z')), limit: 1000 });
+  const h = await query(R.markets.product, R.markets.name, { market_id: market.id, chain_id: market.chainId, since: isoDaysAgo(config.trend.days, new Date(o.asOf + 'T00:00:00Z')), limit: 1000 });
   const rows = h.rows.map((r) => ({ day: dayOf(r.day), collateral: num(r.collateral_usd), borrowed: num(r.borrow_usd), u: num(r.utilization) * 100, ba: num(r.borrow_apy) * 100 })).filter((r) => r.day).sort(byDayAsc);
   return { asOf: o.asOf, sample: false, market,
     history: rows.map((r) => ({ day: r.day, collateral: r.collateral, borrowed: r.borrowed })),
@@ -154,7 +211,8 @@ export const loadRwaMarket = cache(async (id: string): Promise<RwaMarketDetail |
 export const marketFacts = (m: RwaMarket) => [
   { label: 'Liquidation LTV', value: pct(m.lltv, 1), note: 'Debt to collateral ratio at which a position can be liquidated' },
   { label: 'Liquidation incentive', value: pct(Math.min(1.15, 1 / (0.3 * (m.lltv / 100) + 0.7)) * 100 - 100, 1), note: 'Discount a liquidator earns, from the LLTV' },
-  { label: 'Loan asset', value: m.loanSymbol }, { label: 'Asset class', value: m.assetClass },
+  { label: 'Loan asset', value: m.loanSymbol }, { label: 'Asset class', value: m.assetClass }, { label: 'Chain', value: chainName(m.chainId) },
+  ...(m.issuer ? [{ label: 'Collateral issuer', value: m.issuer }] : []),
   { label: 'Market id', value: m.id },
 ];
 
@@ -180,3 +238,11 @@ export const assetFacts = (a: Asset, history: Point[], reserve: Reserve | null) 
     { label: 'History since', value: history[0]?.day ?? 'n/a' },
   ];
 };
+
+/** One Euler cluster: its vaults and the lending pairs that make up its RWA composability. */
+export const loadEulerCluster = cache(async (id: string): Promise<EulerClusterDetail | null> => {
+  const o = await loadRwa();
+  const cluster = o.euler.clusters.find((c) => c.id === id);
+  if (!cluster) return null;
+  return { asOf: o.asOf, sample: o.sample, cluster, vaults: o.euler.vaults.filter((v) => v.clusterId === id && v.role !== 'candidate'), pairs: o.euler.pairs.filter((p) => p.clusterId === id) };
+});
