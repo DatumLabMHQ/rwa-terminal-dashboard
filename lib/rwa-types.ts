@@ -34,8 +34,11 @@ export type RwaOverview = {
   asOf: string; sample: boolean;
   kpis: {
     rwaAum: number; rwaAumChange7d: number; rwaAssets: number;
-    deployed: number; deployedPct: number; horizonSupplied: number; morphoCollateral: number; deployedChange7d: number;
-    borrowed: number; utilization: number; holders: number; issuers: number;
+    deployed: number; deployedPct: number; horizonSupplied: number; morphoCollateral: number; horizonSuppliedChange7d: number;
+    // Borrowed per dollar of RWA collateral, per venue and together. Horizon's stablecoin reserves carry no LTV,
+    // so every Horizon loan is backed by the RWA reserves alone.
+    borrowed: number; horizonBorrowed: number; morphoBorrowed: number; borrowedPerCollateral: number;
+    holders: number; holdersDay: string; issuers: number;
   };
   horizon: Point[];   // day, rwa (RWA reserves supplied), stable (stablecoin reserves supplied), borrowed
   aum: Point[];       // day, aum (tokenized RWA AUM), holders

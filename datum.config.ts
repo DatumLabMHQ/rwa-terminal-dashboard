@@ -47,12 +47,14 @@ export const config = {
   // The sign-in gate: the overview is open to everyone; every other page asks once for a name, an email
   // and an occupation (kept on that browser). Leads join the Datum Labs list through app/api/gate.
   gate: { enabled: true, free: ['/'] as string[] },
+  // Sidebar headings: Venues are where tokenized assets are posted as collateral, Assets are the tokens
+  // themselves, Reference explains the numbers. A new venue or asset type joins its heading.
   nav: [
-    { href: '/', label: 'Overview' },
-    { href: '/horizon', label: 'Aave Horizon' },
-    { href: '/markets', label: 'Morpho markets' },
-    { href: '/assets', label: 'Assets' },
-    { href: '/methodology', label: 'Methodology' },
+    { href: '/', label: 'Overview', group: 'Terminal' },
+    { href: '/horizon', label: 'Aave Horizon', group: 'Venues' },
+    { href: '/markets', label: 'Morpho markets', group: 'Venues' },
+    { href: '/assets', label: 'Tokens', group: 'Assets' },
+    { href: '/methodology', label: 'Methodology', group: 'Reference' },
   ],
   // Shown on the methodology page. Keep them honest: what is read, how often, what it excludes.
   sources: [

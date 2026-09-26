@@ -88,8 +88,10 @@ export const loadRwa = cache(async (): Promise<RwaOverview> => {
   const trackedOnHorizon = sum(assets.filter((a) => a.kind === 'rwa'), (a) => a.horizonSupplied);
   const weekAgo = totals.find((r) => r.day === isoDaysAgo(7, asOfDate));
   const horizonWeekAgo = horizon.find((p) => p.day === isoDaysAgo(7, asOfDate));
-  const borrowed = sum(reserves, (r) => r.borrowed) + sum(markets, (m) => m.borrowed);
-  const suppliedAll = sum(reserves, (r) => r.supplied) + morphoCollateral;
+  const horizonBorrowed = sum(reserves, (r) => r.borrowed), morphoBorrowed = sum(markets, (m) => m.borrowed);
+  const borrowed = horizonBorrowed + morphoBorrowed;
+  // Holder snapshots are not daily; a day without one carries 0, which means missing, not nobody.
+  const lastHolders = [...totals].reverse().find((r) => r.holders > 0);
 
   const byVenue = shares(new Map([[config.venues.horizon.label, horizonSupplied], [config.venues.morpho.label, morphoCollateral]]));
   const cls = new Map<string, number>(); rwaReserves.forEach((r) => addTo(cls, r.assetClass, r.supplied)); markets.forEach((m) => addTo(cls, m.assetClass, m.collateralUsd));
@@ -108,8 +110,11 @@ export const loadRwa = cache(async (): Promise<RwaOverview> => {
     kpis: {
       rwaAum, rwaAumChange7d: change(rwaAum, weekAgo?.aum), rwaAssets: assets.filter((a) => a.kind === 'rwa').length,
       deployed, deployedPct: rwaAum ? (trackedOnHorizon / rwaAum) * 100 : 0, horizonSupplied, morphoCollateral,
-      deployedChange7d: change(horizonSupplied, horizonWeekAgo ? num(horizonWeekAgo.rwa) : undefined),
-      borrowed, utilization: suppliedAll ? (borrowed / suppliedAll) * 100 : 0, holders: latest?.holders ?? 0, issuers: latest?.issuers ?? iss.size,
+      horizonSuppliedChange7d: change(horizonSupplied, horizonWeekAgo ? num(horizonWeekAgo.rwa) : undefined),
+      borrowed, horizonBorrowed, morphoBorrowed, borrowedPerCollateral: deployed ? (borrowed / deployed) * 100 : 0,
+      holders: lastHolders?.holders ?? 0, holdersDay: lastHolders?.day ?? '',
+      // Issuers of the tracked tokenized assets. The platform's own count also takes in the stablecoin issuers.
+      issuers: iss.size,
     },
     horizon, aum, byVenue, byClass: shares(cls), byIssuer: shares(iss), reserves, markets, assets, positions: toPositions(reserves, markets), reconciliation,
   };

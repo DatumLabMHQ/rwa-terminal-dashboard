@@ -9,6 +9,10 @@ import { DataTable, defineColumns, SortHeader } from '@/components/data-table';
 import { pct, price, usd } from '@/lib/format';
 import type { Asset, Position, Reserve, RwaMarket } from '@/lib/rwa-types';
 
+// Risk parameters are whole percents, except placeholders such as mGLOBAL's 0.05% / 0.1% on Horizon,
+// which would round to 0% and hide that the reserve is listed but not usable as collateral.
+const ltvDigits = (v: number | null, whole = 0) => (v !== null && v > 0 && v < 1 ? 2 : whole);
+
 const riskClass = (u: number) => (u > 85 ? 'text-(--red)' : u > 70 ? 'text-(--yellow)' : 'text-(--green)');
 const NA = <span className="text-muted-foreground">n/a</span>;
 const Util = ({ value }: { value: number | null }) => (value == null ? NA : <Badge variant="outline" className={`px-1.5 tabular-nums ${riskClass(value)}`}><span className="size-1.5 rounded-full bg-current" />{pct(value, 1)}</Badge>);
@@ -28,8 +32,8 @@ const positionColumns = defineColumns<Position>((col) => [
   col.accessor('assetClass', { header: 'Class', cell: ({ row }) => <Badge variant="secondary" className="font-normal">{row.original.assetClass}</Badge> }),
   col.accessor('collateral', { header: ({ column }) => <SortHeader column={column} label="Collateral" />, cell: ({ row }) => <Money value={row.original.collateral} /> }),
   col.accessor('borrowed', { header: ({ column }) => <SortHeader column={column} label="Borrowed" />, cell: ({ row }) => <Money value={row.original.borrowed} /> }),
-  col.accessor('maxLtv', { header: ({ column }) => <SortHeader column={column} label="Max LTV" />, cell: ({ row }) => <Pct value={row.original.maxLtv} digits={1} muted /> }),
-  col.accessor('liqThreshold', { header: 'Liq. threshold', cell: ({ row }) => <Pct value={row.original.liqThreshold} digits={0} muted /> }),
+  col.accessor('maxLtv', { header: ({ column }) => <SortHeader column={column} label="Max LTV" />, cell: ({ row }) => <Pct value={row.original.maxLtv} digits={ltvDigits(row.original.maxLtv, 1)} muted /> }),
+  col.accessor('liqThreshold', { header: 'Liq. threshold', cell: ({ row }) => <Pct value={row.original.liqThreshold} digits={ltvDigits(row.original.liqThreshold)} muted /> }),
   col.accessor('utilization', { header: ({ column }) => <SortHeader column={column} label="Utilisation" />, cell: ({ row }) => <Util value={row.original.utilization} /> }),
   col.accessor('borrowApy', { header: 'Borrow APY', cell: ({ row }) => <Pct value={row.original.borrowApy} /> }),
 ]);
@@ -54,8 +58,8 @@ const reserveColumns = defineColumns<Reserve>((col) => [
   col.accessor('utilization', { header: ({ column }) => <SortHeader column={column} label="Utilisation" />, cell: ({ row }) => (row.original.kind === 'stable' ? <Util value={row.original.utilization} /> : NA) }),
   col.accessor('supplyApy', { header: 'Supply APY', cell: ({ row }) => <Pct value={row.original.kind === 'stable' ? row.original.supplyApy : null} /> }),
   col.accessor('borrowApy', { header: 'Borrow APY', cell: ({ row }) => <Pct value={row.original.kind === 'stable' ? row.original.borrowApy : null} /> }),
-  col.accessor('ltv', { header: ({ column }) => <SortHeader column={column} label="Max LTV" />, cell: ({ row }) => <Pct value={row.original.kind === 'rwa' ? row.original.ltv : null} digits={0} muted /> }),
-  col.accessor('liqThreshold', { header: 'Liq. threshold', cell: ({ row }) => <Pct value={row.original.kind === 'rwa' ? row.original.liqThreshold : null} digits={0} muted /> }),
+  col.accessor('ltv', { header: ({ column }) => <SortHeader column={column} label="Max LTV" />, cell: ({ row }) => <Pct value={row.original.kind === 'rwa' ? row.original.ltv : null} digits={ltvDigits(row.original.ltv)} muted /> }),
+  col.accessor('liqThreshold', { header: 'Liq. threshold', cell: ({ row }) => <Pct value={row.original.kind === 'rwa' ? row.original.liqThreshold : null} digits={ltvDigits(row.original.liqThreshold)} muted /> }),
   col.accessor('price', { header: 'Oracle price', cell: ({ row }) => <span className="tabular-nums text-muted-foreground">{price(row.original.price)}</span> }),
 ]);
 export function ReservesTable({ data, title, caption, pageSize = 12 }: { data: Reserve[]; title: string; caption: Caption; pageSize?: number }) {

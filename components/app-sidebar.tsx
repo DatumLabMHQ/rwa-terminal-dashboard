@@ -3,7 +3,9 @@
 // pages come from datum.config.ts, and a page's rows (every market, every vault...) come from the
 // dashboard's navChildren() and open under it as a shadcn Collapsible: the label goes to the page,
 // the chevron opens the list, and the list opens by itself on that page. The kit's own pages (KIT)
-// show only in sample mode or with NEXT_PUBLIC_SHOW_KIT=true. Icons are Phosphor only.
+// show only in sample mode or with NEXT_PUBLIC_SHOW_KIT=true. Icons are Phosphor only. A nav entry may
+// name a `group` (Venues, Assets...); entries sharing one sit under that label, in the order the group
+// first appears, and entries without one sit under Pages.
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -19,6 +21,12 @@ import {
 
 // Icons by route. A dashboard's own routes fall back to the grid icon; add them here when they recur.
 const ICONS: Record<string, React.ReactNode> = { '/': <SquaresFourIcon />, '/markets': <TableIcon />, '/vaults': <VaultIcon />, '/horizon': <BankIcon />, '/assets': <CoinsIcon />, '/curators': <UsersThreeIcon />, '/chains': <GlobeHemisphereWestIcon />, '/pools': <DropIcon />, '/reserves': <CoinsIcon />, '/tokens': <TagIcon />, '/flows': <ArrowsLeftRightIcon />, '/liquidations': <LightningIcon />, '/protocols': <StackIcon />, '/methodology': <BookOpenIcon /> };
+type NavItem = { href: string; label: string; group?: string };
+const groupsOf = (nav: readonly NavItem[]) => {
+  const out = new Map<string, NavItem[]>();
+  nav.forEach((n) => out.set(n.group ?? 'Pages', [...(out.get(n.group ?? 'Pages') ?? []), n]));
+  return [...out.entries()];
+};
 const KIT = [{ href: '/kit/charts', label: 'Chart guide', icon: <ChartLineUpIcon /> }];
 
 export function AppSidebar({ badges = {}, subnav = {}, showKit = false, ...props }: React.ComponentProps<typeof Sidebar> & { badges?: Record<string, number>; subnav?: Record<string, NavChild[]>; showKit?: boolean }) {
@@ -37,11 +45,12 @@ export function AppSidebar({ badges = {}, subnav = {}, showKit = false, ...props
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Pages</SidebarGroupLabel>
+        {groupsOf(config.nav).map(([group, items]) => (
+        <SidebarGroup key={group}>
+          <SidebarGroupLabel>{group}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {config.nav.map((n) => {
+              {items.map((n) => {
                 const rows = subnav[n.href] ?? [];
                 const button = (
                   <SidebarMenuButton tooltip={n.label} isActive={active(n.href)} render={<Link href={n.href} />}>
@@ -78,6 +87,7 @@ export function AppSidebar({ badges = {}, subnav = {}, showKit = false, ...props
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        ))}
         <SidebarGroup>
           <SidebarGroupLabel>{showKit ? 'Kit' : 'Datum'}</SidebarGroupLabel>
           <SidebarGroupContent>

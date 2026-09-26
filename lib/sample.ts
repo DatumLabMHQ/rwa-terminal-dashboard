@@ -60,7 +60,6 @@ export function sampleRwa(): RwaOverview {
   const aum: Point[] = days.map((day, i) => ({ day, aum: Math.round(aumSeries[i]), holders: 430 + Math.round(i * 0.47) }));
   const horizonSupplied = rwaSeries[rwaSeries.length - 1], morphoCollateral = ms.reduce((a, m) => a + m.collateralUsd, 0);
   const borrowed = boSeries[boSeries.length - 1] + ms.reduce((a, m) => a + m.borrowed, 0);
-  const suppliedAll = rs.reduce((a, r) => a + r.supplied, 0) + morphoCollateral;
   const rwaAum = aumSeries[aumSeries.length - 1];
   const share = (m: Map<string, number>) => [...m.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   const cls = new Map<string, number>(); rs.filter((r) => r.kind === 'rwa').forEach((r) => cls.set(r.assetClass, (cls.get(r.assetClass) ?? 0) + r.supplied)); ms.forEach((m) => cls.set(m.assetClass, (cls.get(m.assetClass) ?? 0) + m.collateralUsd));
@@ -72,8 +71,9 @@ export function sampleRwa(): RwaOverview {
   return {
     asOf: SAMPLE_AS_OF, sample: true,
     kpis: { rwaAum, rwaAumChange7d: (rwaAum / aumSeries[aumSeries.length - 8] - 1) * 100, rwaAssets: as.filter((a) => a.kind === 'rwa').length,
-      deployed: horizonSupplied + morphoCollateral, deployedPct: (horizonSupplied / rwaAum) * 100, horizonSupplied, morphoCollateral, deployedChange7d: (horizonSupplied / rwaSeries[rwaSeries.length - 8] - 1) * 100,
-      borrowed, utilization: (borrowed / suppliedAll) * 100, holders: 472, issuers: 9 },
+      deployed: horizonSupplied + morphoCollateral, deployedPct: (horizonSupplied / rwaAum) * 100, horizonSupplied, morphoCollateral, horizonSuppliedChange7d: (horizonSupplied / rwaSeries[rwaSeries.length - 8] - 1) * 100,
+      borrowed, horizonBorrowed: boSeries[boSeries.length - 1], morphoBorrowed: ms.reduce((a, m) => a + m.borrowed, 0), borrowedPerCollateral: (borrowed / (horizonSupplied + morphoCollateral)) * 100,
+      holders: 472, holdersDay: SAMPLE_AS_OF, issuers: iss.size },
     horizon, aum, byVenue: share(new Map([['Aave Horizon', horizonSupplied], ['Morpho', morphoCollateral]])), byClass: share(cls), byIssuer: share(iss),
     reserves: rs, markets: ms, assets: as, positions,
     reconciliation: { ours: rs.reduce((a, r) => a + r.supplied, 0), theirs: 462.1e6, theirsSource: 'DefiLlama (sample)', note: 'Both count what is supplied to the Horizon pool, stablecoins included, so they should sit close; a gap is timing or pricing.' },
