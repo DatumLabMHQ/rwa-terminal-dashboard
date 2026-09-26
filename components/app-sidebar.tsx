@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/sidebar';
 
 // Icons by route. A dashboard's own routes fall back to the grid icon; add them here when they recur.
-const ICONS: Record<string, React.ReactNode> = { '/': <SquaresFourIcon />, '/markets': <TableIcon />, '/vaults': <VaultIcon />, '/horizon': <BankIcon />, '/assets': <CoinsIcon />, '/curators': <UsersThreeIcon />, '/chains': <GlobeHemisphereWestIcon />, '/pools': <DropIcon />, '/reserves': <CoinsIcon />, '/tokens': <TagIcon />, '/flows': <ArrowsLeftRightIcon />, '/liquidations': <LightningIcon />, '/protocols': <StackIcon />, '/methodology': <BookOpenIcon /> };
+const ICONS: Record<string, React.ReactNode> = { '/': <SquaresFourIcon />, '/markets': <TableIcon />, '/vaults': <VaultIcon />, '/horizon': <BankIcon />, '/assets': <CoinsIcon />, '/curators': <UsersThreeIcon />, '/chains': <GlobeHemisphereWestIcon />, '/pools': <DropIcon />, '/reserves': <CoinsIcon />, '/tokens': <TagIcon />, '/flows': <ArrowsLeftRightIcon />, '/liquidations': <LightningIcon />, '/euler': <StackIcon />, '/protocols': <StackIcon />, '/methodology': <BookOpenIcon /> };
 type NavItem = { href: string; label: string; group?: string };
 const groupsOf = (nav: readonly NavItem[]) => {
   const out = new Map<string, NavItem[]>();

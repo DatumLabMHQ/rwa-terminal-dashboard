@@ -19,9 +19,9 @@ export function RwaCards({ kpis: k, asOf }: { kpis: RwaOverview['kpis']; asOf: s
       headline: k.rwaAumChange7d >= 0 ? 'Growing over the week' : 'Shrinking over the week', detail: `${count(k.rwaAssets)} tracked assets from ${count(k.issuers)} issuers, stablecoins excluded, as of ${asOf}` },
     // No week-on-week badge: the platform keeps a daily history for Horizon but not yet for the Morpho side of this sum.
     { label: 'Deployed as collateral', value: usd(k.deployed),
-      headline: `${usd(k.horizonSupplied)} on Horizon, ${usd(k.morphoCollateral)} on Morpho`, detail: `Horizon RWA supply ${delta(k.horizonSuppliedChange7d)} on the week; ${pct(k.deployedPct, 1)} of tracked AUM sits on Horizon` },
+      headline: `Horizon ${usd(k.horizonSupplied)}, Morpho ${usd(k.morphoCollateral)}, Euler ${usd(k.eulerCollateral)}`, detail: `Horizon RWA supply ${delta(k.horizonSuppliedChange7d)} on the week; ${pct(k.deployedPct, 1)} of tracked AUM sits on Horizon` },
     { label: 'Borrowed against it', value: usd(k.borrowed),
-      headline: `${pct(k.borrowedPerCollateral, 0)} of the collateral value is borrowed`, detail: `Horizon ${pct(k.horizonSupplied ? (k.horizonBorrowed / k.horizonSupplied) * 100 : 0, 0)}, Morpho ${pct(k.morphoCollateral ? (k.morphoBorrowed / k.morphoCollateral) * 100 : 0, 0)}: borrowed over the RWA collateral behind it` },
+      headline: `${pct(k.borrowedPerCollateral, 0)} of the collateral value is borrowed`, detail: `Horizon ${pct(k.horizonSupplied ? (k.horizonBorrowed / k.horizonSupplied) * 100 : 0, 0)}, Morpho ${pct(k.morphoCollateral ? (k.morphoBorrowed / k.morphoCollateral) * 100 : 0, 0)}, Euler ${pct(k.eulerCollateral ? (k.eulerBorrowed / k.eulerCollateral) * 100 : 0, 0)}: borrowed over the RWA collateral behind it` },
     { label: 'Holders on Horizon', value: count(k.holders),
       headline: 'Addresses holding a Horizon position', detail: `Latest holder snapshot ${k.holdersDay}; forward-only since August 2026` },
   ];
